@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Topologia em Anel — Material de Aula (S3)</title>
+<style>
+  :root{
+    --bg:#f1f5f9;
+    --surface:#ffffff;
+    --surface-2:#f8fafc;
+    --text:#0f172a;
+    --muted:#64748b;
+    --primary:#2563eb;
+    --primary-dark:#1d4ed8;
+    --primary-soft:#dbeafe;
+    --accent:#f59e0b;
+    --accent-soft:#fef3c7;
+    --green:#16a34a;
+    --red:#dc2626;
+    --border:#e2e8f0;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html{background:var(--bg);scroll-behavior:smooth;}
+  body{
+    margin:0;
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{line-height:1.25;text-wrap:balance;margin:0 0 .5rem;}
+  p{text-wrap:pretty;}
+  a{color:var(--primary);}
+
+  /* ---------- Layout ---------- */
+  header.hero{
+    background:linear-gradient(180deg,#1e3a8a 0%,#2563eb 100%);
+    color:#fff;
+    padding:2.5rem 1.25rem 2rem;
+    text-align:center;
+  }
+  header.hero .badge{
+    display:inline-block;background:rgba(255,255,255,.15);
+    padding:.3rem .8rem;border-radius:999px;font-size:.8rem;font-weight:600;
+    letter-spacing:.03em;margin-bottom:.9rem;
+  }
+  header.hero h1{font-size:clamp(1.6rem,4vw,2.6rem);margin-bottom:.4rem;}
+  header.hero p{max-width:640px;margin:0 auto;opacity:.92;font-size:1.05rem;}
+
+  nav.tabs{
+    position:sticky;top:0;z-index:20;
+    background:var(--surface);border-bottom:1px solid var(--border);
+    display:flex;gap:.25rem;overflow-x:auto;padding:.5rem .75rem;
+    box-shadow:0 1px 6px rgba(15,23,42,.05);
+  }
+  nav.tabs button{
+    flex:0 0 auto;border:0;background:transparent;color:var(--muted);
+    font-size:.92rem;font-weight:600;padding:.55rem .9rem;border-radius:999px;
+    cursor:pointer;white-space:nowrap;transition:.15s;
+  }
+  nav.tabs button:hover{color:var(--text);background:var(--surface-2);}
+  nav.tabs button.active{color:#fff;background:var(--primary);}
+
+  main{max-width:960px;margin:0 auto;padding:1.5rem 1.25rem 4rem;}
+  section.panel{display:none;animation:fade .25s ease;}
+  section.panel.active{display:block;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+
+  .card{
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--radius);padding:1.4rem;margin-bottom:1.25rem;
+    box-shadow:0 1px 3px rgba(15,23,42,.04);
+  }
+  .card h2{font-size:1.4rem;color:var(--primary-dark);}
+  .card h3{font-size:1.1rem;margin-top:1.2rem;color:var(--text);}
+  .lead{font-size:1.1rem;color:var(--muted);}
+
+  .kicker{display:inline-block;font-size:.75rem;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--primary);background:var(--primary-soft);
+    padding:.25rem .6rem;border-radius:6px;margin-bottom:.6rem;}
+
+  ul.clean{padding-left:1.2rem;}
+  ul.clean li{margin:.35rem 0;}
+
+  .grid2{display:grid;gap:1rem;grid-template-columns:1fr;}
+  @media(min-width:720px){.grid2{grid-template-columns:1fr 1fr;}}
+
+  .note{
+    border-left:4px solid var(--accent);background:var(--accent-soft);
+    padding:.9rem 1rem;border-radius:8px;margin:1rem 0;
+  }
+  .note strong{color:#92400e;}
+
+  .analogy{
+    border-left:4px solid var(--primary);background:var(--primary-soft);
+    padding:.9rem 1rem;border-radius:8px;margin:1rem 0;
+  }
+
+  /* ---------- Diagram ---------- */
+  .stage{
+    background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);
+    padding:1rem;
+  }
+  #ringCanvas{width:100%;height:360px;display:block;touch-action:none;}
+  @media(min-width:720px){#ringCanvas{height:420px;}}
+  .controls{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-top:.8rem;}
+  .controls label{font-size:.85rem;font-weight:600;color:var(--muted);}
+  .controls select,.controls button{
+    font-size:.9rem;padding:.5rem .8rem;border-radius:8px;border:1px solid var(--border);
+    background:var(--surface);color:var(--text);cursor:pointer;font-weight:600;
+  }
+  .controls button.primary{background:var(--primary);color:#fff;border-color:var(--primary);}
+  .controls button.primary:hover{background:var(--primary-dark);}
+  .controls input[type=range]{accent-color:var(--primary);}
+  .status{
+    margin-top:.8rem;font-weight:600;background:var(--surface);border:1px dashed var(--border);
+    border-radius:8px;padding:.6rem .9rem;min-height:2.6rem;display:flex;align-items:center;gap:.5rem;
+  }
+  .legend{display:flex;gap:1.2rem;flex-wrap:wrap;margin-top:.7rem;font-size:.85rem;color:var(--muted);}
+  .legend span{display:inline-flex;align-items:center;gap:.4rem;}
+  .dot-key{width:14px;height:14px;border-radius:50%;display:inline-block;}
+
+  /* ---------- Pros/Cons ---------- */
+  .pc{border-radius:var(--radius);padding:1.1rem;border:1px solid var(--border);}
+  .pc.pro{background:#f0fdf4;border-color:#bbf7d0;}
+  .pc.con{background:#fef2f2;border-color:#fecaca;}
+  .pc h3{margin-top:0;}
+  .pc.pro h3{color:var(--green);}
+  .pc.con h3{color:var(--red);}
+
+  /* ---------- Roteiro ---------- */
+  .timeline .step{
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    margin-bottom:.75rem;overflow:hidden;
+  }
+  .timeline .step summary{
+    list-style:none;cursor:pointer;padding:1rem 1.1rem;display:flex;align-items:center;gap:.9rem;
+    font-weight:700;font-size:1.02rem;
+  }
+  .timeline .step summary::-webkit-details-marker{display:none;}
+  .timeline .step summary .time{
+    background:var(--primary);color:#fff;font-size:.78rem;font-weight:700;
+    padding:.25rem .55rem;border-radius:6px;white-space:nowrap;
+  }
+  .timeline .step summary .arrow{margin-left:auto;color:var(--muted);transition:.2s;}
+  .timeline .step[open] summary .arrow{transform:rotate(90deg);}
+  .timeline .step .body{padding:0 1.1rem 1.1rem;border-top:1px solid var(--border);}
+  .timeline .step .body h4{margin:1rem 0 .3rem;color:var(--primary-dark);font-size:.95rem;}
+  .speech{
+    background:var(--surface-2);border-left:4px solid var(--primary);border-radius:8px;
+    padding:.85rem 1rem;margin:.6rem 0;font-style:italic;color:#1e293b;
+  }
+  .speech::before{content:"🎤 ";font-style:normal;}
+  .todo{font-size:.92rem;color:var(--muted);}
+  .todo li{margin:.25rem 0;}
+
+  .toolbar{display:flex;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem;}
+  .toolbar button{
+    font-size:.85rem;padding:.5rem .9rem;border-radius:8px;border:1px solid var(--border);
+    background:var(--surface);cursor:pointer;font-weight:600;color:var(--text);
+  }
+
+  /* ---------- Quiz ---------- */
+  .quiz{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:1.2rem;margin-bottom:1rem;}
+  .quiz .q{font-weight:700;margin-bottom:.7rem;}
+  .quiz .opt{
+    display:block;width:100%;text-align:left;border:1px solid var(--border);background:var(--surface-2);
+    padding:.7rem .9rem;border-radius:10px;margin:.4rem 0;cursor:pointer;font-size:.95rem;
+    transition:.15s;color:var(--text);
+  }
+  .quiz .opt:hover{border-color:var(--primary);}
+  .quiz .opt.correct{background:#f0fdf4;border-color:var(--green);color:#166534;font-weight:600;}
+  .quiz .opt.wrong{background:#fef2f2;border-color:var(--red);color:#991b1b;}
+  .quiz .fb{margin-top:.6rem;font-size:.9rem;font-weight:600;min-height:1.2rem;}
+
+  /* ---------- Glossary ---------- */
+  dl.gloss dt{font-weight:700;color:var(--primary-dark);margin-top:.9rem;}
+  dl.gloss dd{margin:.15rem 0 0;color:var(--text);}
+
+  footer{text-align:center;color:var(--muted);font-size:.85rem;padding:2rem 1rem;}
+
+  @media print{
+    nav.tabs,header.hero .badge,.toolbar{display:none;}
+    section.panel{display:block!important;}
+    .card{break-inside:avoid;box-shadow:none;}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <span class="badge">Semana 3 (S3) — Redes de Computadores</span>
+  <h1>Topologia em Anel</h1>
+  <p>Material de apoio e roteiro completo para uma aula de 100 minutos. Feito para o professor: explicação simples, exemplos e um diagrama interativo.</p>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button data-tab="visao" class="active">Visão geral</button>
+  <button data-tab="a1">Aula 1 · Conceito</button>
+  <button data-tab="a2">Aula 2 · Token</button>
+  <button data-tab="a3">Aula 3 · Fluxo</button>
+  <button data-tab="prosecons">Vantagens/Desvantagens</button>
+  <button data-tab="nuvem">Nuvem &amp; Segurança</button>
+  <button data-tab="roteiro">📋 Roteiro (100 min)</button>
+  <button data-tab="quiz">Pause e Responda</button>
+  <button data-tab="glossario">Glossário</button>
+</nav>
+
+<main>
+
+  <!-- ============ VISÃO GERAL ============ -->
+  <section class="panel active" id="visao">
+    <div class="card">
+      <span class="kicker">Comece por aqui</span>
+      <h2>O que você precisa saber para dar esta aula</h2>
+      <p class="lead">Se você não é especialista em redes, não tem problema. Esta página explica tudo em linguagem simples e traz um roteiro pronto do que falar, minuto a minuto.</p>
+      <ul class="clean">
+        <li><strong>Topologia de rede</strong> = o "desenho" de como os computadores são ligados uns aos outros.</li>
+        <li><strong>Topologia em anel</strong> = os computadores são ligados formando um círculo fechado, como uma roda.</li>
+        <li>Os dados viajam de máquina em máquina, sempre na mesma direção, até chegar ao destino.</li>
+        <li>Para organizar quem pode falar e evitar bagunça, usa-se uma "senha" que circula chamada <strong>token</strong>.</li>
+      </ul>
+      <div class="analogy">
+        <strong>Analogia simples para usar em aula:</strong> imagine várias pessoas sentadas em roda passando um bilhete. Cada pessoa só entrega para o vizinho do lado, sempre no mesmo sentido, até o bilhete chegar em quem é o dono. E só pode falar quem estiver segurando um "bastão" (o token). Isso evita que todo mundo fale ao mesmo tempo.
+      </div>
+      <div class="note">
+        <strong>Dica:</strong> abra a aba <em>“Aula 3 · Fluxo”</em> no projetor e mostre a animação do anel funcionando. É a parte que mais prende a atenção da turma.
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Estrutura da semana (como aparece na plataforma)</h3>
+      <div class="grid2">
+        <div class="pc" style="background:var(--surface-2)">
+          <h3 style="margin-top:0;color:var(--primary-dark)">Aula 1 — Conceito e estrutura do anel</h3>
+          <p class="todo">O que é, como as máquinas se conectam e por que forma um círculo.</p>
+        </div>
+        <div class="pc" style="background:var(--surface-2)">
+          <h3 style="margin-top:0;color:var(--primary-dark)">Aula 2 — Funcionamento com token</h3>
+          <p class="todo">Como o token controla quem transmite e evita colisões.</p>
+        </div>
+        <div class="pc" style="background:var(--surface-2)">
+          <h3 style="margin-top:0;color:var(--primary-dark)">Aula 3 — Representação gráfica e fluxo</h3>
+          <p class="todo">Como desenhar o anel e acompanhar o caminho de uma mensagem.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ AULA 1 ============ -->
+  <section class="panel" id="a1">
+    <div class="card">
+      <span class="kicker">Aula 1</span>
+      <h2>Conceito e estrutura do anel</h2>
+      <p class="lead">Cada computador se conecta a exatamente dois vizinhos, formando um caminho fechado em círculo.</p>
+
+      <h3>O que é a topologia em anel</h3>
+      <p>Na topologia em anel, cada dispositivo (computador, impressora, servidor) é ligado ao próximo, e o último se liga de volta ao primeiro. Isso fecha um círculo — por isso o nome "anel". Não existe um "começo" nem um "fim": o caminho é contínuo.</p>
+
+      <h3>Como os dados caminham</h3>
+      <ul class="clean">
+        <li>A informação viaja em <strong>uma única direção</strong> (horário ou anti-horário).</li>
+        <li>Ela passa por cada máquina do caminho até chegar ao destino.</li>
+        <li>Cada máquina funciona como um <strong>repetidor</strong>: recebe o sinal, reforça e passa adiante. Isso evita que o sinal enfraqueça em redes grandes.</li>
+        <li>Se a mensagem não é para aquela máquina, ela apenas repassa; se é, ela copia os dados.</li>
+      </ul>
+
+      <div class="note">
+        <strong>Diferença importante:</strong> na topologia em anel <em>não existe cabo com "pontas soltas"</em>. Como é um círculo fechado, não precisa de terminadores (diferente da topologia em barramento).
+      </div>
+
+      <h3>Anel simples x anel duplo</h3>
+      <div class="grid2">
+        <div class="pc" style="background:var(--surface-2)">
+          <h3 style="margin-top:0">Anel simples</h3>
+          <p class="todo">Um único caminho, uma direção. Mais barato, porém se um ponto quebra, a rede toda para.</p>
+        </div>
+        <div class="pc" style="background:var(--surface-2)">
+          <h3 style="margin-top:0">Anel duplo (ex.: FDDI)</h3>
+          <p class="todo">Dois anéis em direções opostas. Se um cabo falha, o segundo anel assume — mais confiável.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ AULA 2 ============ -->
+  <section class="panel" id="a2">
+    <div class="card">
+      <span class="kicker">Aula 2</span>
+      <h2>Funcionamento com token</h2>
+      <p class="lead">O token é uma "permissão" que circula pelo anel. Só transmite quem estiver com ele.</p>
+
+      <h3>O problema que o token resolve</h3>
+      <p>Se todos os computadores tentassem enviar dados ao mesmo tempo, haveria <strong>colisão</strong> (os sinais se misturam e a informação se perde). O token evita isso de forma organizada.</p>
+
+      <h3>Passo a passo do Token Ring</h3>
+      <ol class="clean">
+        <li>Um pequeno pacote especial chamado <strong>token (ficha)</strong> circula pelo anel continuamente.</li>
+        <li>Quando um computador quer enviar dados, ele <strong>espera o token chegar</strong>.</li>
+        <li>Ao pegar o token, ele o transforma em um <strong>quadro de dados</strong> com o endereço de destino e envia.</li>
+        <li>O quadro passa de máquina em máquina até o destino, que <strong>copia os dados</strong> e marca "recebido".</li>
+        <li>O quadro continua até voltar ao remetente, que confirma a entrega e <strong>libera um novo token livre</strong> para a rede.</li>
+      </ol>
+
+      <div class="analogy">
+        <strong>Analogia:</strong> é como um microfone único passando de mão em mão numa roda de conversa. Só fala quem está com o microfone. Quando termina, passa para o próximo. Ninguém fala por cima de ninguém.
+      </div>
+
+      <div class="note">
+        <strong>Vocabulário técnico:</strong> a tecnologia clássica é o <strong>Token Ring (IEEE 802.5)</strong>, criada pela IBM. Uma evolução em fibra óptica é o <strong>FDDI</strong>, que usa anel duplo e também token.
+      </div>
+
+      <h3>Por que isso é bom?</h3>
+      <ul class="clean">
+        <li><strong>Sem colisões:</strong> o acesso é ordenado e previsível.</li>
+        <li><strong>Justo:</strong> todos os computadores têm a mesma chance de transmitir na vez deles.</li>
+        <li><strong>Estável sob tráfego intenso:</strong> mesmo com a rede cheia, o desempenho é previsível.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ AULA 3 ============ -->
+  <section class="panel" id="a3">
+    <div class="card">
+      <span class="kicker">Aula 3</span>
+      <h2>Representação gráfica e fluxo</h2>
+      <p class="lead">Use o diagrama abaixo no projetor. Escolha uma origem e um destino e mostre a mensagem viajando pelo anel.</p>
+
+      <div class="stage">
+        <canvas id="ringCanvas" aria-label="Diagrama animado da topologia em anel"></canvas>
+        <div class="controls">
+          <label>Origem
+            <select id="origin"></select>
+          </label>
+          <label>Destino
+            <select id="dest"></select>
+          </label>
+          <button class="primary" id="sendBtn">Enviar dados ▶</button>
+          <button id="pauseBtn">Pausar token</button>
+          <label>Velocidade
+            <input type="range" id="speed" min="1" max="10" value="4" />
+          </label>
+        </div>
+        <div class="status" id="status">Token livre circulando pelo anel…</div>
+        <div class="legend">
+          <span><i class="dot-key" style="background:var(--accent)"></i> Token livre (permissão)</span>
+          <span><i class="dot-key" style="background:var(--primary)"></i> Quadro de dados</span>
+          <span><i class="dot-key" style="background:var(--green)"></i> Destino recebendo</span>
+        </div>
+      </div>
+
+      <h3 style="margin-top:1.4rem">Como ler o diagrama em aula</h3>
+      <ul class="clean">
+        <li>Os círculos com letras (A, B, C…) são os <strong>computadores</strong>.</li>
+        <li>A linha do círculo é o <strong>cabo do anel</strong>.</li>
+        <li>A bolinha <span style="color:var(--accent);font-weight:700">amarela</span> é o <strong>token livre</strong> girando.</li>
+        <li>Quando você clica em "Enviar dados", o token vira um <span style="color:var(--primary);font-weight:700">quadro azul</span> que caminha até o destino e depois volta liberando o token de novo.</li>
+      </ul>
+      <div class="note"><strong>Sugestão:</strong> peça para um aluno escolher a origem e outro escolher o destino. Antes de clicar em enviar, pergunte: “por quais máquinas a mensagem vai passar?”.</div>
+    </div>
+  </section>
+
+  <!-- ============ PROS E CONS ============ -->
+  <section class="panel" id="prosecons">
+    <div class="card">
+      <h2>Vantagens e desvantagens</h2>
+      <div class="grid2">
+        <div class="pc pro">
+          <h3>✔ Vantagens</h3>
+          <ul class="clean">
+            <li>Sem colisões graças ao token (acesso organizado).</li>
+            <li>Desempenho previsível mesmo com muito tráfego.</li>
+            <li>Acesso justo: todos transmitem na sua vez.</li>
+            <li>O sinal é reforçado em cada nó (bom para distâncias maiores).</li>
+          </ul>
+        </div>
+        <div class="pc con">
+          <h3>✘ Desvantagens</h3>
+          <ul class="clean">
+            <li>No anel simples, uma falha em um ponto pode parar a rede toda.</li>
+            <li>Adicionar ou remover uma máquina pode interromper o anel.</li>
+            <li>Diagnóstico de problemas é mais trabalhoso.</li>
+            <li>Hoje é pouco usada: as redes atuais preferem a topologia em estrela (com switch).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="note"><strong>Contexto atual:</strong> o Token Ring foi muito importante nos anos 80/90, mas foi substituído na prática pela Ethernet em estrela. Ainda assim, a ideia de "anel" continua viva em backbones de fibra e em anéis de redundância de data centers.</div>
+    </div>
+  </section>
+
+  <!-- ============ NUVEM E SEGURANCA ============ -->
+  <section class="panel" id="nuvem">
+    <div class="card">
+      <h2>Ligação com nuvem e segurança</h2>
+      <p class="lead">Onde a ideia de "anel" encontra a segurança na nuvem — explicado de forma simples.</p>
+
+      <h3>Os 3 pilares da segurança (tríade CID)</h3>
+      <ul class="clean">
+        <li><strong>Confidencialidade:</strong> só quem tem permissão vê a informação.</li>
+        <li><strong>Integridade:</strong> a informação não é alterada indevidamente no caminho.</li>
+        <li><strong>Disponibilidade:</strong> o sistema continua funcionando e acessível.</li>
+      </ul>
+      <div class="analogy"><strong>Onde entra o anel?</strong> Principalmente na <em>disponibilidade</em>. Um anel duplo oferece um caminho alternativo: se um cabo se rompe, os dados seguem pelo outro lado do anel. Isso é <strong>redundância</strong> — um princípio central de segurança e confiabilidade na nuvem.</div>
+
+      <h3>Como a nuvem usa essas ideias</h3>
+      <ul class="clean">
+        <li><strong>Redundância de rotas:</strong> provedores de nuvem (data centers) conectam equipamentos em anéis/malhas para que nunca exista um único ponto de falha.</li>
+        <li><strong>Alta disponibilidade:</strong> se um caminho cai, o tráfego é redirecionado automaticamente — o usuário nem percebe.</li>
+        <li><strong>Backbones em anel de fibra:</strong> operadoras usam anéis (como o padrão SONET/SDH) para garantir que a internet continue funcionando mesmo com rompimentos de fibra.</li>
+      </ul>
+      <div class="note"><strong>Frase para a turma:</strong> “A topologia em anel nos ensina uma lição de segurança: nunca depender de um só caminho. Na nuvem, redundância é sinônimo de disponibilidade.”</div>
+    </div>
+  </section>
+
+  <!-- ============ ROTEIRO ============ -->
+  <section class="panel" id="roteiro">
+    <div class="card">
+      <h2>📋 Roteiro da aula — 100 minutos</h2>
+      <p class="lead">Fala pronta para o professor. Clique em cada bloco para expandir. As frases com 🎤 são o que você pode falar em voz alta.</p>
+      <div class="toolbar">
+        <button onclick="document.querySelectorAll('#roteiro details').forEach(d=>d.open=true)">Expandir tudo</button>
+        <button onclick="document.querySelectorAll('#roteiro details').forEach(d=>d.open=false)">Recolher tudo</button>
+        <button onclick="window.print()">🖨️ Imprimir roteiro</button>
+      </div>
+
+      <div class="timeline">
+
+        <details class="step" open>
+          <summary><span class="time">0–5 min</span> 1. Abertura e boas-vindas <span class="arrow">›</span></summary>
+          <div class="body">
+            <div class="speech">Olá, bom dia a todos! Tudo bem com vocês? Hoje, na nossa Semana 3, vamos estudar um assunto muito interessante de redes de computadores: a <strong>topologia em anel</strong>. Ao final da aula vocês vão entender o que é, como ela funciona com o tal do "token" e como desenhar e acompanhar o caminho de uma mensagem nessa rede.</div>
+            <h4>O que fazer</h4>
+            <ul class="todo">
+              <li>Fazer a chamada / cumprimentar a turma.</li>
+              <li>Escrever no quadro os 3 objetivos: (1) Conceito e estrutura, (2) Token, (3) Fluxo.</li>
+              <li>Pergunta de aquecimento: <em>“Alguém já ouviu falar em topologia de rede? O que vocês acham que significa?”</em></li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="step">
+          <summary><span class="time">5–30 min</span> 2. Aula 1 — Conceito e estrutura <span class="arrow">›</span></summary>
+          <div class="body">
+            <div class="speech">Vamos começar do começo. "Topologia" é só uma palavra difícil para dizer o <strong>desenho da rede</strong>, ou seja, o jeito que os computadores estão ligados uns aos outros. Na topologia em anel, imaginem todos os computadores sentados em roda, cada um ligado ao vizinho da direita e ao da esquerda, formando um círculo fechado.</div>
+            <div class="speech">Nessa rede, a informação anda sempre no mesmo sentido, de máquina em máquina, até chegar em quem é o destino. E tem um detalhe legal: cada computador funciona como um "repetidor", ele reforça o sinal antes de passar adiante. Por isso o sinal não enfraquece mesmo em redes maiores.</div>
+            <h4>O que fazer (abra a aba "Aula 1 · Conceito")</h4>
+            <ul class="todo">
+              <li>Explicar a analogia da roda passando um bilhete.</li>
+              <li>Desenhar no quadro 5 bolinhas em círculo ligadas por linhas.</li>
+              <li>Mostrar a diferença entre <strong>anel simples</strong> e <strong>anel duplo</strong>.</li>
+              <li>Reforçar: não tem "pontas soltas", não precisa de terminador.</li>
+            </ul>
+            <h4>➡ Pause e Responda 1 (últimos 3–4 min)</h4>
+            <p class="todo">Pergunta oral ou na aba "Pause e Responda": <em>“Em uma topologia em anel, a quantos vizinhos cada computador está ligado?”</em> (Resposta: dois.)</p>
+          </div>
+        </details>
+
+        <details class="step">
+          <summary><span class="time">30–60 min</span> 3. Aula 2 — Funcionamento com token <span class="arrow">›</span></summary>
+          <div class="body">
+            <div class="speech">Agora surge uma pergunta importante: se todos os computadores estão em roda, o que acontece se dois quiserem falar ao mesmo tempo? Teríamos uma bagunça, uma <strong>colisão</strong> de sinais, e a informação se perderia. Para resolver isso, a topologia em anel usa uma ideia muito inteligente: o <strong>token</strong>.</div>
+            <div class="speech">O token é como um bastão, ou um microfone único, que fica passando de mão em mão pela roda. A regra é simples: só transmite quem está segurando o token. Quando um computador quer enviar dados, ele espera o token chegar, pega, envia sua mensagem, e depois libera o token de novo para o próximo. Assim ninguém fala por cima de ninguém.</div>
+            <h4>O que fazer (abra a aba "Aula 2 · Token")</h4>
+            <ul class="todo">
+              <li>Explicar o passo a passo do Token Ring (os 5 passos da aba).</li>
+              <li>Citar os nomes técnicos: <strong>Token Ring (IEEE 802.5)</strong> e <strong>FDDI</strong>.</li>
+              <li>Fazer a dinâmica do "microfone": passar um objeto pela sala; só fala quem estiver com ele.</li>
+            </ul>
+            <h4>📝 Registro da Aula 2</h4>
+            <p class="todo">Peça aos alunos que anotem no caderno: “O que é o token e por que ele evita colisões?”. Recolha ou vá verificando as anotações.</p>
+            <h4>➡ Pause e Responda 2</h4>
+            <p class="todo"><em>“Um computador pode enviar dados a qualquer momento na topologia em anel?”</em> (Resposta: não, só quando está com o token.)</p>
+          </div>
+        </details>
+
+        <details class="step">
+          <summary><span class="time">60–70 min</span> 4. Intervalo / dinâmica de fixação <span class="arrow">›</span></summary>
+          <div class="body">
+            <div class="speech">Vamos fazer uma pausa rápida e uma dinâmica. Formem uma roda aqui na frente: cada um de vocês é um computador. Vou entregar este objeto, que é o nosso token. Ele só pode andar em um sentido, e quem quiser "enviar uma mensagem" precisa esperar o token chegar na sua vez.</div>
+            <h4>O que fazer</h4>
+            <ul class="todo">
+              <li>Dinâmica prática de 5–6 alunos em roda com o "token".</li>
+              <li>Simular o envio de uma mensagem de um aluno para outro.</li>
+              <li>Descontrair e recuperar a atenção para a última parte.</li>
+            </ul>
+          </div>
+        </details>
+
+        <details class="step">
+          <summary><span class="time">70–90 min</span> 5. Aula 3 — Representação gráfica e fluxo <span class="arrow">›</span></summary>
+          <div class="body">
+            <div class="speech">Agora que já entendemos o conceito e o token, vamos ver isso funcionando na prática, de forma visual. Olhem para o projetor: temos o nosso anel com vários computadores. A bolinha amarela é o token livre girando. Vou escolher uma origem e um destino, e vocês vão ver a mensagem virar um quadro azul que caminha pelo anel até chegar ao destino.</div>
+            <div class="speech">Reparem que a mensagem não pula direto para o destino: ela passa por cada computador do caminho. E quando chega, ele copia os dados, e o quadro continua até voltar para quem enviou, que então libera o token de novo. É exatamente o que fizemos na dinâmica da roda!</div>
+            <h4>O que fazer (abra a aba "Aula 3 · Fluxo")</h4>
+            <ul class="todo">
+              <li>Usar o diagrama interativo no projetor.</li>
+              <li>Chamar 2 alunos: um escolhe a origem, outro o destino.</li>
+              <li>Antes de clicar em enviar, perguntar por quais máquinas a mensagem vai passar.</li>
+              <li>Clicar em "Enviar dados" e acompanhar o percurso.</li>
+              <li>Mostrar como desenhar o anel no caderno (círculos + setas de sentido).</li>
+            </ul>
+            <h4>➡ Pause e Responda 3</h4>
+            <p class="todo"><em>“Se envio uma mensagem de A para D em um anel A→B→C→D, por quais máquinas ela passa antes de chegar?”</em> (Resposta: por B e C.)</p>
+          </div>
+        </details>
+
+        <details class="step">
+          <summary><span class="time">90–100 min</span> 6. Fechamento e revisão <span class="arrow">›</span></summary>
+          <div class="body">
+            <div class="speech">Para fechar, vamos recapitular o que aprendemos hoje. A topologia em anel liga os computadores em círculo; os dados andam sempre no mesmo sentido, de máquina em máquina; e o token é a permissão que organiza quem pode transmitir, evitando colisões. Vimos também as vantagens, como o acesso justo e sem colisões, e as desvantagens, como o risco de uma falha parar toda a rede.</div>
+            <div class="speech">E, por fim, conectamos tudo isso com a segurança na nuvem: a ideia de ter um anel duplo, com um caminho reserva, é o mesmo princípio de <strong>redundância</strong> que mantém os serviços na nuvem sempre disponíveis. Alguma dúvida? Na próxima aula seguimos com outra topologia. Ótima aula, pessoal!</div>
+            <h4>O que fazer</h4>
+            <ul class="todo">
+              <li>Resumo dos 3 pontos-chave no quadro.</li>
+              <li>Abrir espaço para perguntas.</li>
+              <li>Passar a atividade "Pause e Responda" completa (aba do quiz) como fixação.</li>
+              <li>Adiantar o tema da próxima semana.</li>
+            </ul>
+          </div>
+        </details>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="panel" id="quiz">
+    <div class="card">
+      <h2>Pause e Responda</h2>
+      <p class="lead">Atividades rápidas para usar em cada aula. O aluno clica e recebe a resposta na hora.</p>
+      <div id="quizArea"></div>
+    </div>
+  </section>
+
+  <!-- ============ GLOSSARIO ============ -->
+  <section class="panel" id="glossario">
+    <div class="card">
+      <h2>Glossário rápido</h2>
+      <dl class="gloss">
+        <dt>Topologia de rede</dt>
+        <dd>O formato/desenho de como os dispositivos de uma rede são conectados.</dd>
+        <dt>Nó (nó da rede)</dt>
+        <dd>Qualquer dispositivo conectado à rede (computador, servidor, impressora).</dd>
+        <dt>Anel (ring)</dt>
+        <dd>Topologia em que cada nó se liga a dois vizinhos, formando um círculo fechado.</dd>
+        <dt>Token (ficha)</dt>
+        <dd>Pacote especial que circula pelo anel e dá a "permissão" para transmitir.</dd>
+        <dt>Token Ring (IEEE 802.5)</dt>
+        <dd>Tecnologia clássica de rede em anel com passagem de token, criada pela IBM.</dd>
+        <dt>FDDI</dt>
+        <dd>Rede em anel duplo de fibra óptica, mais rápida e com redundância.</dd>
+        <dt>Colisão</dt>
+        <dd>Quando dois sinais são enviados ao mesmo tempo e se corrompem. O token evita isso.</dd>
+        <dt>Repetidor</dt>
+        <dd>Função de reforçar o sinal antes de repassá-lo ao próximo nó.</dd>
+        <dt>Redundância</dt>
+        <dd>Ter um caminho/recurso reserva para o caso de falha — base da disponibilidade.</dd>
+        <dt>Tríade CID</dt>
+        <dd>Confidencialidade, Integridade e Disponibilidade — os 3 pilares da segurança.</dd>
+      </dl>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Material de apoio para aula — Topologia em Anel (S3). Feito para uso em sala e projeção.
+</footer>
+
+<script>
+/* ---------------- Navegação por abas ---------------- */
+const tabs = document.querySelectorAll('#tabs button');
+const panels = document.querySelectorAll('.panel');
+tabs.forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    tabs.forEach(b=>b.classList.remove('active'));
+    panels.forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+    window.scrollTo({top:0,behavior:'smooth'});
+    if(btn.dataset.tab==='a3'){ resizeCanvas(); }
+  });
+});
+
+/* ---------------- Quiz ---------------- */
+const questions = [
+  {aula:'Pause e Responda 1', q:'Na topologia em anel, cada computador está diretamente ligado a quantos vizinhos?',
+   opts:['A apenas um','A exatamente dois','A todos os outros','A nenhum, usa um switch central'], correct:1,
+   fb:'Isso mesmo! Cada nó se liga a dois vizinhos, formando o círculo fechado.'},
+  {aula:'Pause e Responda 1', q:'O que faz cada máquina com o sinal ao repassá-lo?',
+   opts:['Apaga o sinal','Reforça (repete) o sinal','Divide o sinal em dois','Guarda o sinal para sempre'], correct:1,
+   fb:'Correto! Cada nó atua como repetidor e reforça o sinal.'},
+  {aula:'Pause e Responda 2', q:'Um computador pode transmitir dados a qualquer momento?',
+   opts:['Sim, sempre','Não, só quando está com o token','Sim, se o cabo estiver livre','Somente à noite'], correct:1,
+   fb:'Exato! Só transmite quem está segurando o token — é isso que evita colisões.'},
+  {aula:'Pause e Responda 2', q:'Qual é a principal função do token?',
+   opts:['Aumentar a velocidade da internet','Dar a permissão de transmitir e evitar colisões','Guardar senhas dos usuários','Ligar a rede à nuvem'], correct:1,
+   fb:'Certo! O token organiza o acesso e evita que dois nós transmitam ao mesmo tempo.'},
+  {aula:'Pause e Responda 3', q:'Enviando de A para D no anel A→B→C→D, por onde a mensagem passa antes de chegar?',
+   opts:['Vai direto de A para D','Passa por B e C','Passa só por C','Não é possível enviar'], correct:1,
+   fb:'Isso! A mensagem caminha de nó em nó: passa por B e C antes de chegar em D.'},
+  {aula:'Pause e Responda 3', q:'Qual vantagem de segurança um anel duplo oferece?',
+   opts:['Deixa a rede invisível','Cria um caminho reserva (redundância)','Elimina a necessidade de senha','Aumenta o número de vírus'], correct:1,
+   fb:'Perfeito! O anel duplo garante redundância e mais disponibilidade.'}
+];
+const area = document.getElementById('quizArea');
+questions.forEach((item,qi)=>{
+  const div = document.createElement('div');
+  div.className='quiz';
+  const kick = document.createElement('span');
+  kick.className='kicker'; kick.textContent=item.aula;
+  div.appendChild(kick);
+  const qp = document.createElement('div');
+  qp.className='q'; qp.textContent=(qi+1)+'. '+item.q;
+  div.appendChild(qp);
+  const fb = document.createElement('div');
+  fb.className='fb';
+  item.opts.forEach((opt,oi)=>{
+    const b=document.createElement('button');
+    b.className='opt'; b.textContent=opt;
+    b.addEventListener('click',()=>{
+      const already = div.querySelector('.opt.correct');
+      if(already) return;
+      if(oi===item.correct){
+        b.classList.add('correct');
+        fb.style.color='var(--green)'; fb.textContent='✔ '+item.fb;
+      }else{
+        b.classList.add('wrong');
+        fb.style.color='var(--red)'; fb.textContent='✘ Tente de novo. Pense na regra do anel/token.';
+      }
+    });
+    div.appendChild(b);
+  });
+  div.appendChild(fb);
+  area.appendChild(div);
+});
+
+/* ---------------- Diagrama do anel (canvas) ---------------- */
+const canvas = document.getElementById('ringCanvas');
+const ctx = canvas.getContext('2d');
+const labels = ['A','B','C','D','E','F'];
+let W=0,H=0,cx=0,cy=0,R=0,nodes=[];
+let dpr = window.devicePixelRatio || 1;
+
+function computeNodes(){
+  nodes = labels.map((l,i)=>{
+    const ang = -Math.PI/2 + i*2*Math.PI/labels.length;
+    return {label:l, angle:((ang%(2*Math.PI))+2*Math.PI)%(2*Math.PI), highlight:0, received:false};
+  });
+}
+function resizeCanvas(){
+  const rect = canvas.getBoundingClientRect();
+  if(rect.width===0) return;
+  dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(rect.width*dpr);
+  canvas.height = Math.round(rect.height*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  W=rect.width; H=rect.height; cx=W/2; cy=H/2;
+  R=Math.min(W,H)/2 - 48;
+  computeNodes();
+}
+window.addEventListener('resize',resizeCanvas);
+
+/* estado da animação */
+let dot = { angle:-Math.PI/2, type:'token' }; // 'token' | 'data'
+dot.angle = (dot.angle+2*Math.PI)%(2*Math.PI);
+let pending = null;    // {from,to}
+let data = null;       // {from,to,delivered}
+let running = true;
+let speedFactor = 4;
+
+const originSel = document.getElementById('origin');
+const destSel = document.getElementById('dest');
+labels.forEach((l,i)=>{
+  const o1=document.createElement('option'); o1.value=i; o1.textContent=l; originSel.appendChild(o1);
+  const o2=document.createElement('option'); o2.value=i; o2.textContent=l; destSel.appendChild(o2);
+});
+originSel.value=0; destSel.value=3;
+
+const statusEl = document.getElementById('status');
+function setStatus(txt,color){ statusEl.textContent=txt; statusEl.style.color=color||'var(--text)'; }
+
+document.getElementById('sendBtn').addEventListener('click',()=>{
+  const from=parseInt(originSel.value), to=parseInt(destSel.value);
+  if(from===to){ setStatus('Escolha uma origem e um destino diferentes.','var(--red)'); return; }
+  if(pending || data){ setStatus('Aguarde a transmissão atual terminar…','var(--accent)'); return; }
+  pending={from,to};
+  nodes.forEach(n=>n.received=false);
+  running=true; document.getElementById('pauseBtn').textContent='Pausar token';
+  setStatus('📨 '+labels[from]+' quer enviar para '+labels[to]+'. Esperando o token chegar em '+labels[from]+'…','var(--accent)');
+});
+document.getElementById('pauseBtn').addEventListener('click',(e)=>{
+  running=!running;
+  e.target.textContent = running ? 'Pausar token' : 'Retomar token';
+});
+document.getElementById('speed').addEventListener('input',e=>{ speedFactor=parseInt(e.target.value); });
+
+function inArc(prev,curr,target){
+  prev=((prev%(2*Math.PI))+2*Math.PI)%(2*Math.PI);
+  curr=((curr%(2*Math.PI))+2*Math.PI)%(2*Math.PI);
+  target=((target%(2*Math.PI))+2*Math.PI)%(2*Math.PI);
+  if(prev<=curr) return target>prev && target<=curr;
+  return target>prev || target<=curr;
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  if(R<=0){ requestAnimationFrame(loop); return; }
+
+  // ring backbone
+  ctx.beginPath();
+  ctx.arc(cx,cy,R,0,2*Math.PI);
+  ctx.strokeStyle='#cbd5e1'; ctx.lineWidth=6; ctx.stroke();
+
+  // direction arrows
+  for(let i=0;i<labels.length;i++){
+    const a = nodes[i].angle + Math.PI/labels.length;
+    const ax=cx+R*Math.cos(a), ay=cy+R*Math.sin(a);
+    ctx.save();
+    ctx.translate(ax,ay);
+    ctx.rotate(a+Math.PI/2);
+    ctx.fillStyle='#94a3b8';
+    ctx.beginPath();
+    ctx.moveTo(0,-7); ctx.lineTo(6,4); ctx.lineTo(-6,4); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // nodes
+  nodes.forEach((n)=>{
+    const x=cx+R*Math.cos(n.angle), y=cy+R*Math.sin(n.angle);
+    if(n.highlight>0){
+      ctx.beginPath(); ctx.arc(x,y,30+n.highlight*6,0,2*Math.PI);
+      ctx.fillStyle='rgba(37,99,235,'+(0.18*n.highlight)+')'; ctx.fill();
+      n.highlight-=0.04; if(n.highlight<0)n.highlight=0;
+    }
+    ctx.beginPath(); ctx.arc(x,y,24,0,2*Math.PI);
+    ctx.fillStyle = n.received ? '#16a34a' : '#ffffff';
+    ctx.fill();
+    ctx.lineWidth=3; ctx.strokeStyle = n.received ? '#166534' : '#2563eb'; ctx.stroke();
+    ctx.fillStyle = n.received ? '#ffffff' : '#0f172a';
+    ctx.font='bold 16px system-ui,sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(n.label,x,y);
+  });
+
+  // moving dot
+  const dx=cx+R*Math.cos(dot.angle), dy=cy+R*Math.sin(dot.angle);
+  if(dot.type==='token'){
+    ctx.beginPath(); ctx.arc(dx,dy,11,0,2*Math.PI);
+    ctx.fillStyle='#f59e0b'; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#b45309'; ctx.stroke();
+  }else{
+    ctx.beginPath(); ctx.arc(dx,dy,13,0,2*Math.PI);
+    ctx.fillStyle='#2563eb'; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#1d4ed8'; ctx.stroke();
+    // destination tag
+    ctx.fillStyle='#1d4ed8'; ctx.font='bold 11px system-ui,sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('→'+labels[data.to], dx, dy-24);
+  }
+}
+
+function update(){
+  if(!running) return;
+  const step = 0.004 + speedFactor*0.0016;
+  const prev = dot.angle;
+  dot.angle = (dot.angle + step) % (2*Math.PI);
+
+  // check node crossings
+  nodes.forEach((n,idx)=>{
+    if(inArc(prev,dot.angle,n.angle)){
+      // token reaches source with a pending message -> becomes data
+      if(dot.type==='token' && pending && idx===pending.from){
+        data={from:pending.from,to:pending.to,delivered:false};
+        dot.type='data'; pending=null;
+        n.highlight=1;
+        setStatus('🔒 '+labels[data.from]+' pegou o token e enviou o quadro de dados para '+labels[data.to]+'.','var(--primary)');
+      }
+      // data reaches destination
+      else if(dot.type==='data' && data && !data.delivered && idx===data.to){
+        data.delivered=true; n.received=true; n.highlight=1;
+        setStatus('✅ '+labels[data.to]+' recebeu os dados! O quadro segue de volta até '+labels[data.from]+'.','var(--green)');
+      }
+      // data returns to source -> release token
+      else if(dot.type==='data' && data && data.delivered && idx===data.from){
+        dot.type='token';
+        setStatus('🔓 '+labels[data.from]+' confirmou a entrega e liberou um novo token livre.','var(--accent)');
+        data=null;
+        setTimeout(()=>{ if(!data && !pending) setStatus('Token livre circulando pelo anel…','var(--muted)'); },1800);
+      }
+      else if(dot.type==='data' && data && !data.delivered){
+        n.highlight=0.7; // passing through
+      }
+    }
+  });
+}
+
+function loop(){ update(); draw(); requestAnimationFrame(loop); }
+
+// init
+setTimeout(()=>{ resizeCanvas(); setStatus('Token livre circulando pelo anel…','var(--muted)'); loop(); },60);
+</script>
+</body>
+</html>
